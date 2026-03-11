@@ -7,6 +7,7 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
+    "fixtures": "node tests/generate-fixtures.ts",
     "lint": "eslint .",
     "typecheck": "tsgo"
   },

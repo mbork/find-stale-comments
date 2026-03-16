@@ -3,10 +3,22 @@ import parseDiff from 'parse-diff';
 
 // * Types
 
-interface OldLine {
+export interface OldLine {
 	content: string;
 	type: 'comment' | 'code' | 'empty';
 	changed: boolean;
+}
+
+export interface StaleComment {
+	comment_line_no: number; // 1-based line number of the comment block start
+	comment: string[]; // lines of the comment block
+	offending_line_no: number; // 1-based line number of the changed code line
+	offending_line: string; // the changed code line that triggered the warning
+}
+
+export interface FileReport {
+	filename: string;
+	stale: StaleComment[];
 }
 
 // * Core logic
@@ -34,32 +46,132 @@ export function annotate_lines(contents: string[], chunks: parseDiff.Chunk[]): O
 	return lines;
 }
 
+// Returns stale comment blocks: consecutive comment lines where none were
+// changed, but the following code block was changed.
+export function find_stale_comments(lines: OldLine[]): StaleComment[] {
+	const stale: StaleComment[] = [];
+	let i = 0;
+
+	// Iterate over all lines
+	while (i < lines.length) {
+		// Find the beginning of a comment
+		if (lines[i].type !== 'comment') {
+			i++;
+			continue;
+		}
+
+		// Collect the comment and check if any line in it changed.
+		const comment_state = {
+			line_no: i + 1,
+			content: [] as string[],
+			changed: false,
+		};
+		while (i < lines.length && lines[i].type === 'comment') {
+			if (lines[i].changed) {
+				comment_state.changed = true;
+			}
+			comment_state.content.push(lines[i].content);
+			i++;
+		}
+
+		// If the comment was untouched, check if the following code was changed.
+		if (!comment_state.changed) {
+			while (i < lines.length && lines[i].type !== 'empty') {
+				if (lines[i].changed) {
+					stale.push({
+						comment_line_no: comment_state.line_no,
+						comment: comment_state.content,
+						offending_line_no: i + 1,
+						offending_line: lines[i].content,
+					});
+					break;
+				}
+				i++;
+			}
+		}
+	}
+	return stale;
+}
+
+// Fetches the pre-change content of each modified file from HEAD via git.
+async function fetch_old_contents(
+	files: parseDiff.File[],
+	git: ReturnType<typeof simpleGit>,
+): Promise<Map<string, string>> {
+	const contents = new Map<string, string>();
+	for (const file of files) {
+		if (file.new || !file.from) {
+			continue;
+		}
+		try {
+			const content = await git.show([`HEAD:${file.from}`]);
+			contents.set(file.from, content);
+		}
+		catch {
+			// File not in HEAD (e.g. untracked rename source); skip it.
+		}
+	}
+	return contents;
+}
+
+// Pure function: given parsed diff files and a map of old file contents,
+// returns one FileReport per file that has stale comments.
+export function collect_stale_comments(
+	files: parseDiff.File[],
+	contents: Map<string, string>,
+): FileReport[] {
+	const reports: FileReport[] = [];
+	for (const file of files) {
+		if (file.new || !file.from) {
+			continue;
+		}
+		const old_content = contents.get(file.from);
+		if (old_content === undefined) {
+			continue;
+		}
+		const lines = annotate_lines(old_content.split('\n'), file.chunks);
+		const stale = find_stale_comments(lines);
+		if (stale.length > 0) {
+			reports.push({filename: file.from, stale});
+		}
+	}
+	return reports;
+}
+
+// Prints a formatted report of stale comments to stderr.
+function print_report(reports: FileReport[]): void {
+	if (reports.length === 0) {
+		return;
+	}
+	console.error('======== `find-stale-comments` found comments which should be updated');
+	for (const {filename, stale} of reports) {
+		const line_no_width = String(
+			stale[stale.length - 1].offending_line_no,
+		).length;
+		const fmt_line_no = (n: number) => String(n).padStart(line_no_width);
+		for (const s of stale) {
+			console.error();
+			console.error(`=== ${filename}:${s.comment_line_no}`);
+			for (const [i, line] of s.comment.entries()) {
+				console.error(`${fmt_line_no(s.comment_line_no + i)}: ${line}`);
+			}
+			if (s.offending_line_no > s.comment_line_no + s.comment.length) {
+				console.error('...');
+			}
+			console.error(`${fmt_line_no(s.offending_line_no)}: ${s.offending_line}`);
+		}
+	}
+}
+
 // * Main
 
 async function main(): Promise<void> {
 	const git = simpleGit();
 	const diff = await git.diff(['--staged', '--no-ext-diff', '--no-color']);
 	const files = parseDiff(diff);
-
-	for (const file of files) {
-		// Skip new files: no prior content means no comment to check.
-		if (file.new || !file.from) {
-			continue;
-		}
-
-		const filename = file.from;
-		let oldContent: string;
-		try {
-			oldContent = await git.show([`HEAD:${filename}`]);
-		}
-		catch {
-			continue;
-		}
-
-		const oldLines = annotate_lines(oldContent.split('\n'), file.chunks);
-
-		console.dir(oldLines, {depth: null});
-	}
+	const contents = await fetch_old_contents(files, git);
+	const reports = collect_stale_comments(files, contents);
+	print_report(reports);
 }
 
 if (import.meta.main) {

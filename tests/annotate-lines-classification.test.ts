@@ -26,3 +26,16 @@ test('classifies inline comment as comment', () => {
 	const lines = annotate_lines(['// leading', 'code()', '// inline', 'more_code()'], []);
 	assert.equal(lines[2].type, 'comment');
 });
+
+test('classifies whitespace-only line as empty', () => {
+	const [line] = annotate_lines(['   '], []);
+	assert.equal(line.type, 'empty');
+});
+
+test('preserves line content', () => {
+	const contents = ['// a comment', 'some_code()', ''];
+	const lines = annotate_lines(contents, []);
+	assert.equal(lines[0].content, '// a comment');
+	assert.equal(lines[1].content, 'some_code()');
+	assert.equal(lines[2].content, '');
+});

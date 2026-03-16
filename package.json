@@ -7,6 +7,7 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
+    "lint": "eslint .",
     "typecheck": "tsgo"
   },
   "dependencies": {
@@ -14,7 +15,10 @@
     "simple-git": "^3.32.3"
   },
   "devDependencies": {
+    "@stylistic/eslint-plugin": "^5.10.0",
     "@types/node": "^25.3.5",
-    "@typescript/native-preview": "^7.0.0-dev.20260316.1"
+    "@typescript/native-preview": "^7.0.0-dev.20260316.1",
+    "eslint": "^10.0.3",
+    "typescript-eslint": "^8.57.0"
   }
 }

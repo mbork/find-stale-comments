@@ -25,7 +25,7 @@ export interface FileReport {
 
 // Matches lines whose first non-whitespace characters are a comment marker:
 // //, #, --, ; or %
-function is_comment(line: string): boolean {
+export function is_comment(line: string): boolean {
 	return /^\s*(\/\/|#|--|;|%)/.test(line);
 }
 

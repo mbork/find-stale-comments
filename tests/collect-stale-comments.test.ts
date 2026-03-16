@@ -1,21 +1,8 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import test from 'node:test';
-import parseDiff from 'parse-diff';
 import type parseDiffType from 'parse-diff';
 import {collect_stale_comments} from '../index.ts';
-
-const fixturesDir = path.join(import.meta.dirname, 'fixtures');
-
-async function load_files(name: string): Promise<parseDiffType.File[]> {
-	const patch = await fs.readFile(path.join(fixturesDir, `${name}.patch`), 'utf-8');
-	return parseDiff(patch);
-}
-
-async function load_contents(name: string): Promise<string> {
-	return fs.readFile(path.join(fixturesDir, `${name}.ante.js`), 'utf-8');
-}
+import {load_patch_files, load_ante_text} from './fixture-utils.ts';
 
 // * Skipped files
 
@@ -35,23 +22,23 @@ test('skips files with no `from`', () => {
 });
 
 test('skips files missing from contents map', async () => {
-	const files = await load_files('code-changed-but-comment-not');
+	const files = await load_patch_files('code-changed-but-comment-not');
 	assert.deepEqual(collect_stale_comments(files, new Map()), []);
 });
 
 // * No stale comments
 
 test('returns empty when comment was updated alongside code', async () => {
-	const files = await load_files('comment-changed');
-	const contents = new Map([[files[0].from!, await load_contents('comment-changed')]]);
+	const files = await load_patch_files('comment-changed');
+	const contents = new Map([[files[0].from!, await load_ante_text('comment-changed')]]);
 	assert.deepEqual(collect_stale_comments(files, contents), []);
 });
 
 // * Stale comment detected
 
 test('returns FileReport with correct filename and stale entry', async () => {
-	const files = await load_files('code-changed-but-comment-not');
-	const contents = new Map([[files[0].from!, await load_contents('code-changed-but-comment-not')]]);
+	const files = await load_patch_files('code-changed-but-comment-not');
+	const contents = new Map([[files[0].from!, await load_ante_text('code-changed-but-comment-not')]]);
 	const reports = collect_stale_comments(files, contents);
 	assert.equal(reports.length, 1);
 	assert.equal(reports[0].filename, files[0].from);

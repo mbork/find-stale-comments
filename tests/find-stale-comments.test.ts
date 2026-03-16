@@ -160,6 +160,26 @@ test('detects stale when changed comment line follows unchanged code block', () 
 
 // * Multiple blocks
 
+// Verifies that the outer loop resumes correctly after a clean (non-stale)
+// comment+code block: the code-scan loop leaves i on the empty line, and the
+// outer loop must still pick up the next comment block.
+test('detects stale comment after a clean comment+code block', () => {
+	const lines: OldLine[] = [
+		{content: '// first comment', type: 'comment', changed: false},
+		{content: 'first_code()', type: 'code', changed: false},
+		{content: '', type: 'empty', changed: false},
+		{content: '// second comment', type: 'comment', changed: false},
+		{content: 'second_code()', type: 'code', changed: true},
+	];
+	assert.deepEqual(find_stale_comments(lines), [{
+		comment_line_no: 4,
+		comment: ['// second comment'],
+		offending_line_no: 5,
+		offending_line: 'second_code()',
+	}]);
+});
+
+
 test('reports multiple stale comment blocks', () => {
 	const lines: OldLine[] = [
 		{content: '// first comment', type: 'comment', changed: false},

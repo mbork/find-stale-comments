@@ -138,29 +138,32 @@ export function collect_stale_comments(
 	return reports;
 }
 
-// Prints a formatted report of stale comments to stderr.
-function print_report(reports: FileReport[]): void {
+// Formats a report of stale comments as a string, or returns null if empty.
+export function print_report(reports: FileReport[]): string | null {
 	if (reports.length === 0) {
-		return;
+		return null;
 	}
-	console.error('======== `find-stale-comments` found comments which should be updated');
+	const lines: string[] = [
+		'======== `find-stale-comments` found comments which should be updated',
+	];
 	for (const {filename, stale} of reports) {
 		const line_no_width = String(
 			stale[stale.length - 1].offending_line_no,
 		).length;
 		const fmt_line_no = (n: number) => String(n).padStart(line_no_width);
 		for (const s of stale) {
-			console.error();
-			console.error(`=== ${filename}:${s.comment_line_no}`);
+			lines.push('');
+			lines.push(`=== ${filename}:${s.comment_line_no}`);
 			for (const [i, line] of s.comment.entries()) {
-				console.error(`${fmt_line_no(s.comment_line_no + i)}: ${line}`);
+				lines.push(`${fmt_line_no(s.comment_line_no + i)}: ${line}`);
 			}
 			if (s.offending_line_no > s.comment_line_no + s.comment.length) {
-				console.error('...');
+				lines.push('...');
 			}
-			console.error(`${fmt_line_no(s.offending_line_no)}: ${s.offending_line}`);
+			lines.push(`${fmt_line_no(s.offending_line_no)}: ${s.offending_line}`);
 		}
 	}
+	return lines.join('\n');
 }
 
 // * Main
@@ -171,7 +174,11 @@ async function main(): Promise<void> {
 	const files = parseDiff(diff);
 	const contents = await fetch_old_contents(files, git);
 	const reports = collect_stale_comments(files, contents);
-	print_report(reports);
+	const report = print_report(reports);
+	if (report !== null) {
+		process.stderr.write(report + '\n');
+		process.exit(1);
+	}
 }
 
 if (import.meta.main) {

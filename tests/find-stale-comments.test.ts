@@ -100,7 +100,6 @@ test('detects stale multi-line comment', () => {
 	}]);
 });
 
-
 test('detects stale comment when code changed but comment not', () => {
 	const lines: OldLine[] = [
 		{content: '// a comment', type: 'comment', changed: false},
@@ -178,7 +177,6 @@ test('detects stale comment after a clean comment+code block', () => {
 		offending_line: 'second_code()',
 	}]);
 });
-
 
 test('reports multiple stale comment blocks', () => {
 	const lines: OldLine[] = [

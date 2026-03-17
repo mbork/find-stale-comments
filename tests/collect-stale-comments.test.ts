@@ -38,11 +38,12 @@ test('returns empty when comment was updated alongside code', async () => {
 
 test('returns FileReport with correct filename and stale entry', async () => {
 	const files = await load_patch_files('code-changed-but-comment-not');
-	const contents = new Map([[files[0].from!, await load_ante_text('code-changed-but-comment-not')]]);
+	const ante_text = await load_ante_text('code-changed-but-comment-not');
+	const contents = new Map([[files[0].from!, ante_text]]);
 	const reports = collect_stale_comments(files, contents);
 	assert.equal(reports.length, 1);
 	assert.equal(reports[0].filename, files[0].from);
 	assert.equal(reports[0].stale.length, 1);
 	assert.deepEqual(reports[0].stale[0].comment, ['// Say hello to the world']);
-	assert.equal(reports[0].stale[0].offending_line, "console.log('Hello world!');");
+	assert.equal(reports[0].stale[0].offending_line, 'console.log(\'Hello world!\');');
 });

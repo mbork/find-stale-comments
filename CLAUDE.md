@@ -29,6 +29,9 @@ npm run coverage-report  # check test coverage, open report for a human in the b
 npm run lint       # check code style
 npm run typecheck  # check for TypeScript errors
 ```
+A `PostToolUse` hook runs these automatically after each change.
+If there are any Eslint errors, run `npm run lint -- --fix` and fix remaining issues yourself.
+If there are any type errors, fix them yourself.
 
 ## Coding conventions
 Assume Node.js v24 or later, and use new Node.js features freely.

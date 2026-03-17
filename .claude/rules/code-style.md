@@ -17,4 +17,4 @@ join();
 ```
 is bad.
 
-Follow the rules in `eslint.config.js` when writing code.
+Follow the conventions in existing code and the rules in eslint.config.js when writing code.

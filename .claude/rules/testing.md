@@ -38,4 +38,4 @@ Run `npm run coverage` to check test coverage.
 
 ## Fixture utils
 
-The `tests/fixture-utils.ts` module contains function useful in more than one test file.
+When writing tests that load fixtures, import from tests/fixture-utils.ts rather than defining local loading functions.  If a new function to handle fixture-related tasks is needed, add it there.
